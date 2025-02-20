@@ -168,7 +168,6 @@ class Outfit {
     }
 
     public function render(){
-
         $basepath = $this->outfits_dir;
 
         // Setup and validates
@@ -220,15 +219,16 @@ class Outfit {
                 return $this->render();
             }
             $image = imagecreatefrompng($outfit);
+            imageantialias($image, false); // Desativa o anti-aliasing
         } else {
             $this->looktype = 128;
             return $this->render();
         }
 
         // Check if has template
-        // monsters dont have template (with exceptions like elf, frog...)
         if(file_exists($outfit_tpl)){
             $template = imagecreatefrompng($outfit_tpl);
+            imageantialias($template, false); // Desativa o anti-aliasing
         } else {
             $haveTemplate = false;
         }
@@ -237,16 +237,20 @@ class Outfit {
         if($addons == 1 || $addons == 3){
             if(file_exists($addon1)){
                 $addon1_image = imagecreatefrompng($addon1);
+                imageantialias($addon1_image, false); // Desativa o anti-aliasing
                 self::overlay($image, $addon1_image);
                 $addon1_template_image = imagecreatefrompng($addon1_tpl);
+                imageantialias($addon1_template_image, false); // Desativa o anti-aliasing
     			self::overlay($template, $addon1_template_image);
             }
         }
         if($addons == 2 || $addons == 3){
             if(file_exists($addon2)){
                 $addon2_image = imagecreatefrompng($addon2);
+                imageantialias($addon2_image, false); // Desativa o anti-aliasing
                 self::overlay($image, $addon2_image);
                 $addon2_template_image = imagecreatefrompng($addon2_tpl);
+                imageantialias($addon2_template_image, false); // Desativa o anti-aliasing
     			self::overlay($template, $addon2_template_image);
             }
         }
@@ -259,14 +263,14 @@ class Outfit {
         if($mountid > 0){
             if(file_exists($mount)){
                 $mount_image = imagecreatefrompng($mount);
+                imageantialias($mount_image, false); // Desativa o anti-aliasing
                 if(imagesx($mount_image) < 64){
                     //transform 32x32 into 64x64
                     $base_mount = imagecreatetruecolor(64, 64);
-		    imageantialias($base_mount, false);
                     imagesavealpha($base_mount, true);
                     imagefill($base_mount, 0, 0, imagecolorallocatealpha($base_mount, 0, 0, 0, 127));
 
-                    imagecopyresampled($base_mount, $mount_image, 32, 32, 0, 0, 32, 32, 32, 32);
+                    imagecopyresized($base_mount, $mount_image, 32, 32, 0, 0, 32, 32, 32, 32); // Usa imagecopyresized para evitar anti-aliasing
                     $mount_image = $base_mount;
                 }
                 self::overlay($mount_image, $image);
@@ -280,17 +284,18 @@ class Outfit {
         // transform 32x32 into 64x64
         if(imagesx($image) < 64){
             $base = imagecreatetruecolor(64, 64);
-            imageantialias($base, false);
             imagesavealpha($base, true);
             imagefill($base, 0, 0, imagecolorallocatealpha($base, 0, 0, 0, 127));
 
-            imagecopyresampled($base, $image, 32, 32, 0, 0, 32, 32, 32, 32);
+            imagecopyresized($base, $image, 32, 32, 0, 0, 32, 32, 32, 32); // Usa imagecopyresized para evitar anti-aliasing
             $image = $base;
         }
 
         imagealphablending($image, false);
         imagesavealpha($image, true);
+        header('Content-Type: image/png');
         imagepng($image);
+        imagedestroy($image);
     }
 
     /**
@@ -383,5 +388,4 @@ class Outfit {
 			}
 		}
     }
-
 }
