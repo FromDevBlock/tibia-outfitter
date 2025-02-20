@@ -262,6 +262,7 @@ class Outfit {
                 if(imagesx($mount_image) < 64){
                     //transform 32x32 into 64x64
                     $base_mount = imagecreatetruecolor(64, 64);
+		    imageantialias($base_mount, false);
                     imagesavealpha($base_mount, true);
                     imagefill($base_mount, 0, 0, imagecolorallocatealpha($base_mount, 0, 0, 0, 127));
 
@@ -279,6 +280,7 @@ class Outfit {
         // transform 32x32 into 64x64
         if(imagesx($image) < 64){
             $base = imagecreatetruecolor(64, 64);
+            imageantialias($base, false);
             imagesavealpha($base, true);
             imagefill($base, 0, 0, imagecolorallocatealpha($base, 0, 0, 0, 127));
 
