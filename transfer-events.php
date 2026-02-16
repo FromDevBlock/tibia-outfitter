@@ -1,75 +1,55 @@
 <?php
 declare(strict_types=1);
 
-// Impede que erros de permissão ou avisos quebrem o JSON de saída
+// 1. Configurações de erro para não travar o servidor
 ini_set('display_errors', '0');
 error_reporting(0);
 
+// 2. Garante o cabeçalho JSON antes de qualquer coisa
 header('Content-Type: application/json; charset=utf-8');
 
 const TOKEN = 'cherrymm';
 
-function getToken(): ?string {
-  if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
-    $auth = $_SERVER['HTTP_AUTHORIZATION'];
-    if (stripos($auth, 'Bearer ') === 0) {
-      return trim(substr($auth, 7));
+// 3. Função de saída simplificada para garantir resposta rápida
+function sendResponse($code, $data) {
+    if (!headers_sent()) {
+        http_response_code($code);
     }
-  }
-
-  return $_SERVER['HTTP_ASAAS_ACCESS_TOKEN']
-    ?? $_SERVER['HTTP_X_WEBHOOK_TOKEN']
-    ?? $_SERVER['HTTP_X_AUTH_TOKEN']
-    ?? $_SERVER['HTTP_ACCESS_TOKEN']
-    ?? null;
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-function out($code, $data) {
-  http_response_code($code);
-  echo json_encode($data, JSON_UNESCAPED_UNICODE);
-  exit;
-}
+// 4. Validação do Token
+$token = $_SERVER['HTTP_ASAAS_ACCESS_TOKEN'] 
+      ?? $_SERVER['HTTP_X_WEBHOOK_TOKEN'] 
+      ?? $_SERVER['HTTP_X_AUTH_TOKEN'] 
+      ?? null;
 
-// Validação básica de método
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-  echo "transfer events webhook ativo";
-  exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-  out(405, ['ok' => false]);
-}
-
-// Validação do Token
-$token = getToken();
 if (!$token || !hash_equals(TOKEN, $token)) {
-  out(401, ['ok' => false]);
+    sendResponse(401, ['ok' => false, 'msg' => 'Unauthorized']);
 }
 
-// Leitura do corpo da requisição
+// 5. Captura do Payload
 $input = file_get_contents("php://input");
+if (!$input) {
+    sendResponse(200, ['ok' => true, 'msg' => 'Empty payload']);
+}
+
 $data = json_decode($input, true);
 
-if (!$data) {
-    out(400, ['ok' => false, 'error' => 'Payload inválido']);
-}
-
-// Registra no log do servidor para debug (visível no console/terminal)
-error_log("[Asaas Webhook] Dados: " . $input);
+// 6. Log no console (Railway logs)
+// Usamos error_log para não imprimir nada na tela e não dar 502
+error_log("Webhook Asaas Recebido: " . ($data['event'] ?? 'sem evento'));
 
 $event = $data['event'] ?? 'UNKNOWN';
 $transfer = $data['transfer'] ?? [];
 
-// Captura detalhes da transferência e possível motivo de falha
-$tId = $transfer['id'] ?? null;
-$tStatus = $transfer['status'] ?? 'UNKNOWN';
-$failReason = $transfer['failReason'] ?? null;
-
-// Resposta para o Asaas (Status 200 é obrigatório para "aprovar" o recebimento)
-out(200, [
-  'ok' => true,
-  'event' => $event,
-  'transferId' => $tId,
-  'status' => $tStatus,
-  'failReason' => $failReason
+// 7. Resposta de Sucesso imediata
+// Respondemos 200 para o Asaas não achar que o servidor caiu
+sendResponse(200, [
+    'ok' => true,
+    'event' => $event,
+    'transferId' => $transfer['id'] ?? null,
+    'status' => $transfer['status'] ?? null,
+    'failReason' => $transfer['failReason'] ?? null
 ]);
