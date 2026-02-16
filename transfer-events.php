@@ -1,55 +1,55 @@
 <?php
 declare(strict_types=1);
 
-// 1. Configurações de erro para não travar o servidor
 ini_set('display_errors', '0');
 error_reporting(0);
 
-// 2. Garante o cabeçalho JSON antes de qualquer coisa
 header('Content-Type: application/json; charset=utf-8');
 
 const TOKEN = 'cherrymm';
 
-// 3. Função de saída simplificada para garantir resposta rápida
-function sendResponse($code, $data) {
-    if (!headers_sent()) {
-        http_response_code($code);
-    }
-    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+function getToken(): ?string {
+  $headers = getallheaders();
+  return $headers['Asaas-Access-Token'] 
+    ?? $headers['X-Webhook-Token'] 
+    ?? $_SERVER['HTTP_ASAAS_ACCESS_TOKEN'] 
+    ?? null;
+}
+
+$token = getToken();
+if (!$token || !hash_equals(TOKEN, $token)) {
+    http_response_code(401);
     exit;
 }
 
-// 4. Validação do Token
-$token = $_SERVER['HTTP_ASAAS_ACCESS_TOKEN'] 
-      ?? $_SERVER['HTTP_X_WEBHOOK_TOKEN'] 
-      ?? $_SERVER['HTTP_X_AUTH_TOKEN'] 
-      ?? null;
-
-if (!$token || !hash_equals(TOKEN, $token)) {
-    sendResponse(401, ['ok' => false, 'msg' => 'Unauthorized']);
-}
-
-// 5. Captura do Payload
 $input = file_get_contents("php://input");
-if (!$input) {
-    sendResponse(200, ['ok' => true, 'msg' => 'Empty payload']);
-}
-
 $data = json_decode($input, true);
 
-// 6. Log no console (Railway logs)
-// Usamos error_log para não imprimir nada na tela e não dar 502
-error_log("Webhook Asaas Recebido: " . ($data['event'] ?? 'sem evento'));
+if (!$data) {
+    http_response_code(400);
+    exit;
+}
 
-$event = $data['event'] ?? 'UNKNOWN';
+$event = $data['event'] ?? '';
 $transfer = $data['transfer'] ?? [];
+$transferId = $transfer['id'] ?? null;
 
-// 7. Resposta de Sucesso imediata
-// Respondemos 200 para o Asaas não achar que o servidor caiu
-sendResponse(200, [
-    'ok' => true,
-    'event' => $event,
-    'transferId' => $transfer['id'] ?? null,
-    'status' => $transfer['status'] ?? null,
-    'failReason' => $transfer['failReason'] ?? null
-]);
+// LOG PARA DEBUG NO CONSOLE
+error_log("[Asaas Validation] Evento: $event | ID: $transferId");
+
+/**
+ * LÓGICA DE APROVAÇÃO:
+ * O Asaas enviará o evento 'TRANSFER_CREATED' para validação.
+ */
+if ($event === 'TRANSFER_CREATED') {
+    // Aqui você verificaria no seu banco de dados se esse ID existe.
+    // Como estamos validando, vamos responder APPROVED:
+    echo json_encode([
+        "status" => "APPROVED"
+    ]);
+    exit;
+}
+
+// Para outros eventos (como falha ou conclusão), apenas retorne 200 OK
+http_response_code(200);
+echo json_encode(["ok" => true]);
