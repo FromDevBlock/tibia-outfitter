@@ -4,7 +4,7 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 
 const TOKEN = 'cherrymm';
-const LOG = __DIR__ . '/asaas_transfer_events.log';
+const LOG = '/tmp/asaas_transfer_events.log'; 
 
 function getToken(): ?string {
 
@@ -36,17 +36,11 @@ function out($code, $data) {
 }
 
 function logPayload($data) {
-
-  file_put_contents(
-
+  @file_put_contents(
     LOG,
-
     date("[d/m/Y H:i:s] ") . json_encode($data) . PHP_EOL,
-
     FILE_APPEND
-
   );
-
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
